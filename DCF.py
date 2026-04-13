@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 TICKER          = "MSFT"      # Stock to analyse
-GROWTH_RATE     = 0.07        # Expected FCF growth rate (7% per year)
 DISCOUNT_RATE   = 0.10        # Required rate of return / WACC (10%)
 TERMINAL_GROWTH = 0.025       # Long-term stable growth rate after Year 5 (2.5%)
 PROJECTION_YEARS = 5          # How many years we project into the future
@@ -41,19 +40,40 @@ def get_stock_data(ticker: str) -> dict:
     # --- Free Cash Flow ---
     # yfinance sometimes exposes FCF directly; otherwise we compute it
     cash_flow = stock.cashflow  # DataFrame: rows = line items, cols = dates
-
+    # --- Latest Free Cash Flow (for valuation) ---
     try:
-        # Try direct FCF first (newer yfinance versions)
         if "Free Cash Flow" in cash_flow.index:
-            fcf = float(cash_flow.loc["Free Cash Flow"].iloc[0])
+         fcf = float(cash_flow.loc["Free Cash Flow"].iloc[0])
         else:
-            # Approximate: Operating Cash Flow - Capital Expenditures
             operating_cf = float(cash_flow.loc["Operating Cash Flow"].iloc[0])
-            capex        = float(cash_flow.loc["Capital Expenditure"].iloc[0])
-            # Capital Expenditure is usually negative in yfinance — we subtract it
-            fcf = operating_cf + capex   # adding a negative = subtracting
+            capex = float(cash_flow.loc["Capital Expenditure"].iloc[0])
+            fcf = operating_cf + capex
     except KeyError:
-        raise ValueError("Required cash flow line items not found. Try a different ticker.")
+        raise ValueError("Required cash flow line items not found.")
+
+   # --- Historical FCF for growth calculation ---
+    try:
+        if "Free Cash Flow" in cash_flow.index:
+            fcf_series = cash_flow.loc["Free Cash Flow"].dropna()
+        else:
+            operating_cf = cash_flow.loc["Operating Cash Flow"]
+            capex = cash_flow.loc["Capital Expenditure"]
+            fcf_series = (operating_cf + capex).dropna()
+
+        # Take last 4 years (latest first)
+        fcf_values = fcf_series.values[:4]
+
+        if len(fcf_values) < 2:
+            raise ValueError("Not enough data for growth calculation")
+        # CAGR calculation
+        start_fcf = fcf_values[-1]
+        end_fcf = fcf_values[0]
+        years = len(fcf_values) - 1
+
+        growth_rate = (end_fcf / start_fcf) ** (1 / years) - 1
+
+    except Exception:
+        raise ValueError("Failed to compute historical FCF")
 
     # Shares outstanding — needed to convert total FCF → per-share value
     shares = info.get("sharesOutstanding")
@@ -66,6 +86,7 @@ def get_stock_data(ticker: str) -> dict:
         "fcf_total":     fcf,           # Total FCF in dollars
         "fcf_per_share": fcf / shares,  # FCF per share (like EPS but for cash)
         "shares":        shares,
+        "growth_rate":growth_rate
     }
 
 
@@ -191,7 +212,11 @@ def main():
 
     # Step 2 — Project cash flows
     print("\n[2] Projecting Free Cash Flows (per share)...")
-    projected = project_cash_flows(fcf_per_share, GROWTH_RATE, PROJECTION_YEARS)
+    growth_rate = data["growth_rate"]
+
+    print(f"    Estimated Growth Rate: {growth_rate:.2%}")
+
+    projected = project_cash_flows(fcf_per_share, growth_rate, PROJECTION_YEARS)
 
     for i, fcf in enumerate(projected, start=1):
         print(f"    Year {i}: ${fcf:,.4f}")
