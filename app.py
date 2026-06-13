@@ -15,6 +15,26 @@ st.write("Analyze whether a stock is undervalued or overvalued.")
 # Input
 ticker = st.text_input("Enter Stock Ticker", "MSFT").upper()
 
+# ---------------------------------------------------
+# Growth assumption selection
+# ---------------------------------------------------
+
+growth_mode = st.sidebar.radio(
+    "Growth Assumption",
+    [
+        "Historical CAGR",
+        "Analyst Estimate",
+        "Manual Input"
+    ]
+)
+
+manual_growth = st.sidebar.slider(
+    "Manual Growth Rate (%)",
+    min_value=0,
+    max_value=50,
+    value=10,
+    step=1
+)
 if st.button("Analyze"):
 
     try:
@@ -24,7 +44,55 @@ if st.button("Analyze"):
 
             current_price = data["current_price"]
             fcf_per_share = data["fcf_per_share"]
-            growth_rate = data["growth_rate"]
+            historical_growth = data["growth_rate"]
+            if historical_growth < 0:
+                st.warning(
+                    f"Historical CAGR is "
+                    f"{historical_growth:.2%}. "
+                    f"Negative growth may indicate "
+                    f"deteriorating business performance "
+                    f"or unreliable data."
+                )
+            elif historical_growth > 0.40:
+                st.warning(
+                    f"Historical CAGR is "
+                    f"{historical_growth:.2%}. "
+                    f"Growth above 40% is often "
+                    f"unsustainable and should be "
+                    f"reviewed manually."
+                )
+            analyst_growth = data.get("analyst_growth")
+
+            # -----------------------------------------
+            # choose growth source
+            # -----------------------------------------
+
+            if growth_mode == "Historical CAGR":
+                growth_rate = historical_growth
+
+            elif growth_mode == "Analyst Estimate":
+
+                if analyst_growth is not None:
+                    growth_rate = analyst_growth
+
+                else:
+                    st.warning(
+                        "Analyst estimate unavailable. "
+                        "Falling back to historical CAGR."
+                    )
+
+                    growth_rate = historical_growth
+
+            else:
+                growth_rate = manual_growth / 100
+            
+            with st.expander("Growth Assumption Details"):
+                    st.write(f"Historical CAGR: "f"{historical_growth:.2%}")
+
+                    if analyst_growth is not None:
+                        st.write(f"Analyst Estimate: "f"{analyst_growth:.2%}")
+                    else:
+                        st.write( "Analyst Estimate: Not Available")
 
             # Run model
             projected = project_cash_flows(fcf_per_share, growth_rate, PROJECTION_YEARS)
@@ -92,8 +160,9 @@ if st.button("Analyze"):
                 f"{stats['prob_undervalued']:.1%}"
             )
 
-            st.write(f"Estimated Growth Rate: {growth_rate:.2%}")
-            
+            st.write(f"Growth Assumption Used: "f"{growth_rate:.2%}")
+            st.write(f"Source: {growth_mode}")
+                    
 
             if valuation["verdict"] == "UNDERVALUED":
                 st.success("UNDERVALUED")

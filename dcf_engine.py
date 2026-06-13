@@ -89,13 +89,22 @@ def get_stock_data(ticker: str) -> dict:
     if shares is None or shares == 0:
         raise ValueError("Shares outstanding data unavailable.")
 
+    analyst_growth = (
+    info.get("revenueGrowth")
+    or info.get("earningsGrowth"))
+
     return {
-        "ticker":        ticker,
+        "ticker": ticker,
         "current_price": current_price,
-        "fcf_total":     fcf,           # Total FCF in dollars
-        "fcf_per_share": fcf / shares,  # FCF per share (like EPS but for cash)
-        "shares":        shares,
-        "growth_rate":growth_rate
+        "fcf_total": fcf,
+        "fcf_per_share": fcf / shares,
+        "shares": shares,
+
+        # historical FCF CAGR
+        "growth_rate": growth_rate,
+
+        # analyst estimate fallback
+        "analyst_growth": analyst_growth
     }
 
 
@@ -434,7 +443,50 @@ def main():
 
     # Step 2 — Project cash flows
     print("\n[2] Projecting Free Cash Flows (per share)...")
-    growth_rate = data["growth_rate"]
+    historical_growth = data["growth_rate"]
+    if historical_growth < 0:
+
+        st.warning(
+            f"Historical CAGR is "
+            f"{historical_growth:.2%}. "
+            f"Negative growth may indicate "
+            f"deteriorating business performance "
+            f"or unreliable data."
+        )
+
+    elif historical_growth > 0.40:
+
+        st.warning(
+            f"Historical CAGR is "
+            f"{historical_growth:.2%}. "
+            f"Growth above 40% is often "
+            f"unsustainable and should be "
+            f"reviewed manually."
+        )
+    analyst_growth = data.get("analyst_growth")
+
+    # -----------------------------------------
+    # choose growth source
+    # -----------------------------------------
+
+    if growth_mode == "Historical CAGR":
+        growth_rate = historical_growth
+
+    elif growth_mode == "Analyst Estimate":
+
+        if analyst_growth is not None:
+            growth_rate = analyst_growth
+
+        else:
+            st.warning(
+                "Analyst estimate unavailable. "
+                "Falling back to historical CAGR."
+            )
+
+            growth_rate = historical_growth
+
+    else:
+        growth_rate = manual_growth / 100
 
     print(f"    Estimated Growth Rate: {growth_rate:.2%}")
 
