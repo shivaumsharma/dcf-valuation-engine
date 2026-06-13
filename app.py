@@ -116,7 +116,7 @@ if st.button("Analyze"):
 
             st.dataframe(
                 grid,
-                use_container_width=True
+                width="stretch"
             )
             
             # Chart
@@ -124,7 +124,7 @@ if st.button("Analyze"):
 
             fig = plot_projection_chart(projected,result["pv_cash_flows"])
 
-            st.plotly_chart(fig,use_container_width=True)
+            st.plotly_chart(fig,width="stretch")
 
     except Exception as e:
         st.error(f"Error: {str(e)}")
