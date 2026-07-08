@@ -1,0 +1,140 @@
+{
+  "n_rows": 84,
+  "cross_validation": {
+    "logistic_regression": {
+      "cv_accuracy_mean": 0.6205882352941177,
+      "cv_accuracy_std": 0.0913186746838825,
+      "cv_f1_macro_mean": 0.46379084967320255,
+      "cv_f1_macro_std": 0.13673640003501736,
+      "n_splits": 5
+    },
+    "xgboost": {
+      "cv_accuracy_mean": 0.44117647058823534,
+      "cv_accuracy_std": 0.0831890330807703,
+      "cv_f1_macro_mean": 0.29960872460872456,
+      "cv_f1_macro_std": 0.03861918724227966,
+      "n_splits": 5
+    }
+  },
+  "held_out_test": {
+    "logistic_regression": {
+      "test_f1_macro": 0.5634920634920635,
+      "classification_report": {
+        "UNDERVALUED": {
+          "precision": 0.7692307692307693,
+          "recall": 0.9090909090909091,
+          "f1-score": 0.8333333333333334,
+          "support": 11.0
+        },
+        "FAIRLY VALUED": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 3.0
+        },
+        "OVERVALUED": {
+          "precision": 0.8571428571428571,
+          "recall": 0.8571428571428571,
+          "f1-score": 0.8571428571428571,
+          "support": 7.0
+        },
+        "accuracy": 0.7619047619047619,
+        "macro avg": {
+          "precision": 0.5421245421245421,
+          "recall": 0.5887445887445887,
+          "f1-score": 0.5634920634920635,
+          "support": 21.0
+        },
+        "weighted avg": {
+          "precision": 0.6886446886446886,
+          "recall": 0.7619047619047619,
+          "f1-score": 0.7222222222222223,
+          "support": 21.0
+        }
+      }
+    },
+    "xgboost": {
+      "test_f1_macro": 0.49641025641025643,
+      "classification_report": {
+        "UNDERVALUED": {
+          "precision": 0.6428571428571429,
+          "recall": 0.8181818181818182,
+          "f1-score": 0.72,
+          "support": 11.0
+        },
+        "FAIRLY VALUED": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 3.0
+        },
+        "OVERVALUED": {
+          "precision": 0.8333333333333334,
+          "recall": 0.7142857142857143,
+          "f1-score": 0.7692307692307693,
+          "support": 7.0
+        },
+        "accuracy": 0.6666666666666666,
+        "macro avg": {
+          "precision": 0.4920634920634921,
+          "recall": 0.5108225108225108,
+          "f1-score": 0.49641025641025643,
+          "support": 21.0
+        },
+        "weighted avg": {
+          "precision": 0.6145124716553289,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.6335531135531136,
+          "support": 21.0
+        }
+      }
+    }
+  },
+  "best_model": "logistic_regression",
+  "feature_importances": [
+    {
+      "feature": "revenue_growth",
+      "importance": 0.5460430565471212
+    },
+    {
+      "feature": "net_cash_per_share_over_price",
+      "importance": 0.2799784490062238
+    },
+    {
+      "feature": "beta",
+      "importance": 0.2767782725105387
+    },
+    {
+      "feature": "discount_rate",
+      "importance": 0.2767782725105386
+    },
+    {
+      "feature": "fcf_yield",
+      "importance": 0.2419351775130739
+    },
+    {
+      "feature": "prob_undervalued",
+      "importance": 0.19496951506928237
+    },
+    {
+      "feature": "growth_rate",
+      "importance": 0.17700541190016708
+    },
+    {
+      "feature": "dcf_over_price",
+      "importance": 0.06422701635684172
+    },
+    {
+      "feature": "mc_std_over_price",
+      "importance": 0.043701897877075783
+    },
+    {
+      "feature": "margin_vs_undervalued_threshold",
+      "importance": 0.03138850179842627
+    },
+    {
+      "feature": "mc_mean_over_price",
+      "importance": 0.031388501798426026
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+============================================================
+HISTORICAL DEMO BACKTEST (approximation -- see docstring; do not cite this number, use the walk-forward result instead)
+============================================================
+Stocks evaluated : 85
+Overall accuracy : 37.6%  (a single blended number like this is exactly what hides class-level weaknesses -- see confusion matrix and per-class report below for what it's masking)
+
+Confusion matrix (rows = realized/true, cols = predicted):
+                    pred_UNDERVALUED  pred_FAIRLY VALUED  pred_OVERVALUED
+true_UNDERVALUED                  20                   7               18
+true_FAIRLY VALUED                 6                   1                3
+true_OVERVALUED                   18                   1               11
+
+Per-class precision / recall / F1:
+               precision    recall  f1-score   support
+
+  UNDERVALUED       0.45      0.44      0.45        45
+FAIRLY VALUED       0.11      0.10      0.11        10
+   OVERVALUED       0.34      0.37      0.35        30
+
+     accuracy                           0.38        85
+    macro avg       0.30      0.30      0.30        85
+ weighted avg       0.38      0.38      0.38        85

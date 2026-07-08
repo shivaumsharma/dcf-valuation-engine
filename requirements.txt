@@ -5,3 +5,6 @@ pandas
 plotly
 scipy
 matplotlib
+scikit-learn
+xgboost
+joblib

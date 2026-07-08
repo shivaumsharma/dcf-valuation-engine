@@ -17,7 +17,6 @@ import plotly.graph_objects as go
 # ============================================================
 
 TICKER          = "MSFT"      # Stock to analyse
-DISCOUNT_RATE   = 0.10        # Required rate of return / WACC (10%)
 TERMINAL_GROWTH = 0.025       # Long-term stable growth rate after Year 5 (2.5%)
 PROJECTION_YEARS= 5           # How many years we project into the future
 MARGIN_OF_SAFETY=0.15
@@ -35,9 +34,12 @@ def get_stock_data(ticker: str) -> dict:
     FCF = Operating Cash Flow - Capital Expenditures
     """
     stock = yf.Ticker(ticker)
+    is_indian = ticker.endswith(".NS") or ticker.endswith(".BO")
+    
 
     # --- Current market price ---
     info = stock.info
+    beta = info.get("beta", 1.0)
     current_price = info.get("currentPrice") or info.get("regularMarketPrice")
     if current_price is None:
         raise ValueError(f"Could not fetch price for {ticker}")
@@ -46,6 +48,9 @@ def get_stock_data(ticker: str) -> dict:
     # yfinance sometimes exposes FCF directly; otherwise we compute it
     cash_flow = stock.cashflow  # DataFrame: rows = line items, cols = dates
     # --- Latest Free Cash Flow (for valuation) ---
+
+    cash = info.get("totalCash", 0)
+    debt = info.get("totalDebt", 0)
     try:
         if "Free Cash Flow" in cash_flow.index:
          fcf = float(cash_flow.loc["Free Cash Flow"].iloc[0])
@@ -54,7 +59,21 @@ def get_stock_data(ticker: str) -> dict:
             capex = float(cash_flow.loc["Capital Expenditure"].iloc[0])
             fcf = operating_cf + capex
     except KeyError:
-        raise ValueError("Required cash flow line items not found.")
+        try:
+
+            net_income = float(
+                stock.financials.loc["Net Income"].iloc[0]
+            )
+
+            fcf = net_income * 0.7
+
+        except Exception:
+
+            raise ValueError(
+                "Unable to compute FCF or fallback FCF."
+            )
+            
+        
 
    # --- Historical FCF for growth calculation ---
     try:
@@ -89,9 +108,8 @@ def get_stock_data(ticker: str) -> dict:
     if shares is None or shares == 0:
         raise ValueError("Shares outstanding data unavailable.")
 
-    analyst_growth = (
-    info.get("revenueGrowth")
-    or info.get("earningsGrowth"))
+    revenue_growth = info.get("revenueGrowth")
+    analyst_growth = (info.get("revenueGrowth") or info.get("earningsGrowth"))
 
     return {
         "ticker": ticker,
@@ -99,12 +117,13 @@ def get_stock_data(ticker: str) -> dict:
         "fcf_total": fcf,
         "fcf_per_share": fcf / shares,
         "shares": shares,
-
-        # historical FCF CAGR
         "growth_rate": growth_rate,
-
-        # analyst estimate fallback
-        "analyst_growth": analyst_growth
+        "analyst_growth": analyst_growth,
+        "revenue_growth":revenue_growth,
+        "is_indian": is_indian,
+        "cash":cash,
+        "debt":debt,
+        "beta": beta,
     }
 
 
@@ -135,12 +154,8 @@ def project_cash_flows(
 #  The core valuation engine — discounts future cash flows to today
 # ============================================================
 
-def calculate_dcf(
-    projected_fcfs:  list[float],
-    discount_rate:   float,
-    terminal_growth: float,
-    years:           int
-) -> dict:
+def calculate_dcf(projected_fcfs:  list[float],discount_rate:   float,terminal_growth: float,
+years:           int) -> dict:
     """
     Discounts each projected FCF back to present value (PV).
     Then calculates Terminal Value using the Gordon Growth Model.
@@ -233,12 +248,7 @@ def sensitivity_analysis_2d(projected_fcfs,base_discount,base_terminal,years):
 
         for terminal in terminal_rates:
 
-            result = calculate_dcf(
-                projected_fcfs,
-                discount,
-                terminal,
-                years
-            )
+            result = calculate_dcf(projected_fcfs,discount,terminal,years)
 
             row.append(
                 result["intrinsic_value"]
@@ -495,11 +505,17 @@ def main():
     for i, fcf in enumerate(projected, start=1):
         print(f"    Year {i}: ${fcf:,.4f}")
 
+    beta = max(0.8, min(data["beta"], 2.0))
+
+    discount_rate = 0.04 + beta * 0.03
     # Step 3 — DCF calculation
     print("\n[3] Discounting cash flows...")
-    result = calculate_dcf(projected, DISCOUNT_RATE, TERMINAL_GROWTH, PROJECTION_YEARS)
+    result = calculate_dcf(projected, discount_rate, TERMINAL_GROWTH, PROJECTION_YEARS)
+    net_cash_per_share = ((data["cash"] - data["debt"])/ data["shares"])
 
-    mc_values = run_monte_carlo(iterations=10000,historical_growth=growth_rate,wacc=DISCOUNT_RATE,terminal_g=TERMINAL_GROWTH,fcf_per_share=fcf_per_share,years=PROJECTION_YEARS)
+    result["intrinsic_value"] += net_cash_per_share
+
+    mc_values = run_monte_carlo(iterations=10000,historical_growth=growth_rate,wacc=discount_rate,terminal_g=TERMINAL_GROWTH,fcf_per_share=fcf_per_share,years=PROJECTION_YEARS)
 
     if len(mc_values) == 0:
         raise ValueError(
@@ -554,7 +570,7 @@ def main():
 
     sensitivity_2d = sensitivity_analysis_2d(
     projected,
-    DISCOUNT_RATE,
+    discount_rate,
     TERMINAL_GROWTH,
     PROJECTION_YEARS
     )
@@ -566,7 +582,7 @@ def main():
     # Step 5 — Sensitivity table
     print("\n[4] Sensitivity Analysis — Discount Rate vs Intrinsic Value")
     sensitivity = sensitivity_analysis(
-        projected, TERMINAL_GROWTH, PROJECTION_YEARS, DISCOUNT_RATE
+        projected, TERMINAL_GROWTH, PROJECTION_YEARS, discount_rate
     )
     print(sensitivity.to_string(index=False))
     print()
@@ -584,4 +600,5 @@ def main():
 
 # if __name__ == "__main__":
 #     main()
+    
     
